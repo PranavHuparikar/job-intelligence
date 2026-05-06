@@ -143,26 +143,35 @@ def _save(path: Path, items: list) -> None:
     path.write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def save_cv(name: str, content: str) -> None:
-    items = [i for i in _load(CV_FILE) if i["name"].strip().lower() != name.strip().lower()]
+def save_cv(name: str, content: str, user_email: str = "") -> None:
+    _email = user_email.strip().lower()
+    items = [i for i in _load(CV_FILE)
+             if not (i["name"].strip().lower() == name.strip().lower()
+                     and i.get("user_email", "") == _email)]
     items.insert(0, {
-        "id":       str(uuid.uuid4())[:8],
-        "name":     name.strip(),
-        "content":  content,
-        "saved_at": datetime.now().strftime("%d %b %Y %H:%M"),
+        "id":         str(uuid.uuid4())[:8],
+        "name":       name.strip(),
+        "content":    content,
+        "user_email": _email,
+        "saved_at":   datetime.now().strftime("%d %b %Y %H:%M"),
     })
     _save(CV_FILE, items)
 
 
-def save_jd_json(name: str, company: str, content: str, metadata: dict) -> None:
-    items = [i for i in _load(JD_FILE) if i["name"].strip().lower() != name.strip().lower()]
+def save_jd_json(name: str, company: str, content: str, metadata: dict, user_email: str = "") -> None:
+    _email = user_email.strip().lower()
+    # Only deduplicate within the same user's items
+    items = [i for i in _load(JD_FILE)
+             if not (i["name"].strip().lower() == name.strip().lower()
+                     and i.get("user_email", "") == _email)]
     items.insert(0, {
-        "id":       str(uuid.uuid4())[:8],
-        "name":     name.strip(),
-        "company":  company.strip(),
-        "content":  content,
-        "metadata": metadata,
-        "saved_at": datetime.now().strftime("%d %b %Y %H:%M"),
+        "id":         str(uuid.uuid4())[:8],
+        "name":       name.strip(),
+        "company":    company.strip(),
+        "content":    content,
+        "metadata":   metadata,
+        "user_email": _email,
+        "saved_at":   datetime.now().strftime("%d %b %Y %H:%M"),
     })
     _save(JD_FILE, items)
 
@@ -1087,7 +1096,8 @@ with st.sidebar:
 
     # ── Saved CVs ─────────────────────────────────────────────────────────────
     st.subheader("📄 Saved CVs")
-    cvs = _load(CV_FILE)
+    _sidebar_email = st.session_state.get("user_email", "").strip().lower()
+    cvs = [c for c in _load(CV_FILE) if c.get("user_email", "") == _sidebar_email] if _sidebar_email else []
     if cvs:
         for cv in cvs:
             c1, c2 = st.columns([5, 1])
@@ -1108,7 +1118,8 @@ with st.sidebar:
         if st.button("Save CV", use_container_width=True, key="btn_save_cv"):
             content = st.session_state.get("cv_area", "").strip()
             if cv_name and content:
-                save_cv(cv_name, content)
+                save_cv(cv_name, content,
+                        user_email=st.session_state.get("user_email", ""))
                 st.success(f"Saved: {cv_name}"); st.rerun()
             else:
                 st.warning("Enter a name and make sure the CV field isn't empty.")
@@ -1117,7 +1128,8 @@ with st.sidebar:
 
     # ── Saved JDs ─────────────────────────────────────────────────────────────
     st.subheader("💼 Saved JDs")
-    jds = _load(JD_FILE)
+    _sidebar_email = st.session_state.get("user_email", "").strip().lower()
+    jds = [j for j in _load(JD_FILE) if j.get("user_email", "") == _sidebar_email] if _sidebar_email else []
     if jds:
         for jd in jds:
             c1, c2 = st.columns([5, 1])
@@ -1138,7 +1150,8 @@ with st.sidebar:
             jd_content  = st.session_state.get("jd_area", "").strip()
             company_val = st.session_state.get("company_input", "").strip()
             if jd_name and jd_content:
-                save_jd_json(jd_name, company_val, jd_content, {})
+                save_jd_json(jd_name, company_val, jd_content, {},
+                             user_email=st.session_state.get("user_email", ""))
                 st.success(f"Saved: {jd_name}"); st.rerun()
             else:
                 st.warning("Enter a name and make sure the JD field isn't empty.")
