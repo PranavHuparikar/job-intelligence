@@ -1,0 +1,14 @@
+{"event": "run_start", "run_id": "f4e08d5c-324", "company": "Deutsch Bank", "model": "claude-sonnet-4-6", "experience_level": "senior", "source": "streamlit", "active_count": 1, "ts": "2026-05-02T16:47:57"}
+{"event": "phase1_start", "run_id": "f4e08d5c-324", "phase": "phase1", "ts": "2026-05-02T16:48:06"}
+{"event": "phase1_jd_done", "run_id": "f4e08d5c-324", "phase": "phase1_jd", "ts": "2026-05-02T16:49:01"}
+{"event": "phase1_company_done", "run_id": "f4e08d5c-324", "phase": "phase1_company", "ts": "2026-05-02T16:50:33"}
+{"event": "phase2_start", "run_id": "f4e08d5c-324", "phase": "phase2", "ts": "2026-05-02T16:50:33"}
+{"event": "phase2_done", "run_id": "f4e08d5c-324", "phase": "phase2", "ts": "2026-05-02T16:53:59"}
+{"event": "run_end", "run_id": "f4e08d5c-324", "company": "Deutsch Bank", "model": "claude-sonnet-4-6", "success": true, "duration_secs": 399.5, "cost_usd_est": 0.3, "active_count": 0, "quality": "amber", "ats_score": "0/11", "ts": "2026-05-02T16:54:37"}
+{"event": "run_start", "run_id": "ecf6c8d9-c4f", "company": "Persistent Systems", "model": "claude-sonnet-4-6", "experience_level": "senior", "source": "streamlit", "active_count": 1, "ts": "2026-05-02T17:00:01"}
+{"event": "phase1_start", "run_id": "ecf6c8d9-c4f", "phase": "phase1", "ts": "2026-05-02T17:00:01"}
+{"event": "phase1_jd_done", "run_id": "ecf6c8d9-c4f", "phase": "phase1_jd", "ts": "2026-05-02T17:00:51"}
+{"event": "phase1_company_done", "run_id": "ecf6c8d9-c4f", "phase": "phase1_company", "ts": "2026-05-02T17:02:35"}
+{"event": "phase2_start", "run_id": "ecf6c8d9-c4f", "phase": "phase2", "ts": "2026-05-02T17:02:35"}
+{"event": "phase2_done", "run_id": "ecf6c8d9-c4f", "phase": "phase2", "ts": "2026-05-02T17:06:25"}
+{"event": "run_end", "run_id": "ecf6c8d9-c4f", "company": "Persistent Systems", "model": "claude-sonnet-4-6", "success": true, "duration_secs": 393.3, "cost_usd_est": 0.3, "active_count": 0, "quality": "green", "ats_score": "7/10", "ts": "2026-05-02T17:06:34"}

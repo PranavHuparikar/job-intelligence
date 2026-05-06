@@ -1,0 +1,47 @@
+# ── Core pipeline ─────────────────────────────────────────────────────────────
+streamlit>=1.35.0
+gspread>=6.0.0
+google-auth>=2.0.0
+crewai==0.80.0
+# crewai-tools==0.17.0   # removed — pulls chromadb+onnxruntime (~600MB), exceeds Streamlit Cloud 1GB RAM
+langchain-anthropic==0.3.0
+litellm>=1.44.0
+anthropic>=0.40.0
+tavily-python>=0.3.0
+beautifulsoup4==4.12.3
+requests==2.32.3
+python-dotenv==1.0.1
+setuptools>=68.0.0
+pydantic==2.10.4
+
+# ── Output generation ─────────────────────────────────────────────────────────
+reportlab==4.2.2
+python-docx==1.1.2
+lxml>=4.9.0
+
+# ── Cloud database + embeddings ───────────────────────────────────────────────
+supabase>=2.4.0
+voyageai>=0.2.3
+
+# ── Payments ──────────────────────────────────────────────────────────────────
+razorpay>=1.4.1
+
+# ── CV parsing ────────────────────────────────────────────────────────────────
+pdfplumber>=0.11.0
+chardet>=3.0.2,<4
+
+# ── Numeric / vector ──────────────────────────────────────────────────────────
+# numpy 2.x uses delvewheel DLL bundling on Windows which can cause a hang on
+# first import (Windows Defender scans bundled DLLs). Pin to 1.x.
+numpy>=1.22.5,<2.0
+# chromadb>=0.5.3   # too heavy for Streamlit Cloud (1GB RAM limit) — enable locally only
+
+# ── JD similarity search ──────────────────────────────────────────────────────
+# Cloud: Voyage AI API (voyageai package above) — no local model, no RAM hit.
+# Local fallback: sentence-transformers (requires PyTorch ~2 GB, local only).
+#
+# To enable local fallback:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#   pip install sentence-transformers
+#
+# sentence-transformers>=2.7.0   # uncomment for local use only

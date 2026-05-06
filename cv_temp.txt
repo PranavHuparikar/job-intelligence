@@ -1,0 +1,59 @@
+Pranav Huparikar
++91-9420322539 | phuparikar6@gmail.com | LinkedIn | Pune, India
+
+PROFESSIONAL SUMMARY
+Data Scientist and AI Engineer with 4+ years of experience building and delivering cognitive AI solutions across NLP, foundation models, computer vision, and unstructured data analysis. Proficient in PyTorch, TensorFlow, Keras, and Hugging Face Transformers with hands-on production experience deploying LLM-based systems including RAG pipelines, transformer architectures (BERT, GPT, T5), and end-to-end ML models achieving 95%+ accuracy. Experienced in full AI project lifecycle management and stakeholder collaboration across 500+ client engagements. Skilled in AWS cloud deployment and Python-driven AI solution development.
+
+SKILLS
+AI & Foundation Models: LLMs (BERT, GPT, T5), RAG Systems, Prompt Engineering, Hugging Face Transformers, Local LLMs (Ollama), Document Understanding, Cognitive Computing
+ML/DL Frameworks: PyTorch, TensorFlow, Keras, Scikit-learn, OpenCV, Pandas, NumPy, Matplotlib
+NLP & Computer Vision: Sentiment Analysis, Text Classification, Document Extraction, Named Entity Recognition, Object Detection (YOLO), Image Classification, Segmentation, Video Analysis, OCR
+Programming: Python (advanced), SQL, Data Structures & Algorithms
+Cloud & Deployment: AWS, Docker, Streamlit, Git, GitHub, GitHub Copilot
+Databases: SQL, PostgreSQL (relational), exposure to NoSQL
+Data Science: EDA, Statistical Analysis, Feature Engineering, Time Series Forecasting, Model Evaluation, A/B Testing
+Visualization: Power BI, Matplotlib, Seaborn, Plotly
+
+EXPERIENCE
+
+AI Engineer | Optimum Data Analytics | April 2024 - March 2025 | Pune, India
+- Architected and delivered cognitive AI solutions using foundation models (BERT, GPT, T5) and RAG pipelines for enterprise document understanding and intelligent QA applications
+- Managed full AI project lifecycle from research and prototyping through to production deployment and evaluation
+- Developed production-ready deep learning models using PyTorch and TensorFlow achieving 95%+ accuracy in medical imaging and 92% in quality detection
+- Built NLP solutions for structured and unstructured data: sentiment analysis for financial applications, text classification, and automated document extraction pipelines
+- Implemented computer vision systems for medical imaging, object detection, and industrial quality analysis using CNNs, Vision Transformers, and YOLO
+- Deployed AI models on AWS using Docker containerisation and Streamlit for client-facing production environments
+- Collaborated with cross-functional stakeholders to identify business problems and deliver AI-driven solutions aligned to business outcomes
+
+Subject Matter Expert - AI/ML | Upthink Edtech | July 2019 - July 2022 | Pune, India
+- Delivered AI/ML consulting and technical expertise to 500+ clients across data science, machine learning, NLP, and deep learning domains
+- Collaborated with diverse stakeholders to translate business problems into AI/ML solutions
+- Guided implementations spanning classical ML (Logistic Regression, Random Forest, XGBoost) to advanced deep learning and LLM architectures
+- Mentored clients on production AI pipeline design, model evaluation strategies, and engineering best practices
+
+KEY PROJECTS
+
+RAG System for Enterprise Document Understanding | LLMs, Hugging Face, Vector DBs, Python, AWS
+- Architected Retrieval-Augmented Generation pipeline using foundation models with advanced semantic chunking, vector search, and conversation memory for intelligent document QA -- processing unstructured enterprise data at scale
+
+Dental Disease Classification | PyTorch, CNNs, Vision Transformers, Docker, AWS, Streamlit
+- End-to-end cognitive AI solution: data engineering, Vision Transformer model (95% accuracy), Docker + AWS deployment, clinical stakeholder delivery -- reduced diagnostic time by 40%
+
+Stock Market Prediction with Sentiment Analysis | BiLSTM, NLP, LLMs, Financial ML
+- Hybrid AI system combining deep learning (BiLSTM) with LLM-powered multi-source news sentiment analysis for financial forecasting
+
+Cotton Quality Detection | Multi-modal AI, CNNs, Feature Engineering
+- Multi-modal cognitive solution integrating computer vision and tabular data achieving 92% accuracy, reducing industrial inspection errors by 35%
+
+Blood Glucose Detection & Barcode Analysis | CNNs, RNNs, YOLO, OCR
+- Non-invasive medical AI regression model and automated computer vision barcode detection system
+
+EDUCATION
+Bachelor of Engineering - Computer Science
+Pune Vidyarthi Griha's College of Engineering and Technology, Pune University | 2018
+
+CERTIFICATIONS
+Machine Learning Specialization - Andrew Ng, Stanford & DeepLearning.AI
+Generative AI with Large Language Models - DeepLearning.AI & AWS
+Azure AI Fundamentals - Microsoft
+Full Stack Data Science Bootcamp 2.0 - iNeuron
