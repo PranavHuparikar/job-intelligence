@@ -479,6 +479,7 @@ def save_jd(
     job_type: str = "",
     experience_level: str = "",
     jd_id: Optional[str] = None,
+    user_email: str = "",
 ) -> str:
     """
     Save a JD and generate its embedding.
@@ -505,6 +506,7 @@ def save_jd(
                 "jd_text":          jd_text,
                 "jd_text_hash":     h,
                 "created_at":       now,
+                "user_email":       user_email.strip().lower(),
             }
             # Generate embedding via Voyage AI
             try:
@@ -563,6 +565,7 @@ def find_similar_jds(
     experience_level: Optional[str] = None,
     job_type: Optional[str] = None,
     min_similarity: float = _MIN_SIMILARITY,
+    user_email: str = "",
 ) -> List[Dict[str, Any]]:
     """
     Return the top-k most similar JDs, sorted by similarity descending.
@@ -574,13 +577,14 @@ def find_similar_jds(
             sb = _get_supabase()
             query_hash = _jd_hash(jd_text, "")  # company-agnostic hash for query
             # Also try company-keyed hash if we can infer it
-            exact_res = (
+            _exact_q = (
                 sb.table("jd_entries")
                 .select("id, title, company, location, platform, posting_date, job_type, experience_level")
                 .eq("jd_text_hash", query_hash)
-                .limit(1)
-                .execute()
             )
+            if user_email:
+                _exact_q = _exact_q.eq("user_email", user_email.strip().lower())
+            exact_res = _exact_q.limit(1).execute()
             exact_matches = []
             if exact_res.data:
                 for row in exact_res.data:
@@ -621,6 +625,7 @@ def find_similar_jds(
             rpc_args: Dict[str, Any] = {
                 "query_embedding": query_vec,
                 "match_threshold":  min_similarity,
+                "filter_user_email": user_email.strip().lower() if user_email else "",
                 "match_count":      top_k,
             }
             if exclude_id:
@@ -693,6 +698,9 @@ def find_similar_jds(
         "JOIN jd_embeddings e ON m.id = e.jd_id WHERE 1=1"
     )
     params: List[Any] = []
+    if user_email:
+        query += " AND m.user_email = ?"
+        params.append(user_email.strip().lower())
     if exclude_id:
         query += " AND m.id != ?"
         params.append(exclude_id)

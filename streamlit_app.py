@@ -311,6 +311,7 @@ def _pipeline_worker(
     q:                queue.Queue,
     result_holder:    list,
     force_fresh:      bool = False,
+    user_email:       str = "",
 ) -> None:
     """
     Runs in a background thread.
@@ -671,6 +672,7 @@ def _pipeline_worker(
                 posting_date=jd_metadata.get("posting_date", ""),
                 job_type=jd_metadata.get("job_type", ""),
                 experience_level=experience_level,
+                user_email=user_email,
             )
         except Exception as e:
             jd_id = None
@@ -694,6 +696,7 @@ def _pipeline_worker(
                     exclude_id=jd_id,
                     experience_level=experience_level,
                     job_type=jd_metadata.get("job_type", ""),
+                    user_email=user_email,
                 )
         except Exception as e:
             progress(f"⚠ Similarity search failed: {e}")
@@ -831,6 +834,7 @@ def run_pipeline(
     progress_placeholder,
     section_placeholders: dict = None,
     force_fresh:      bool = False,
+    user_email:       str = "",
 ) -> dict:
     """
     Launch pipeline in background thread.
@@ -846,7 +850,7 @@ def run_pipeline(
         args=(
             cv_text, jd_text, company_name, model,
             role_title, experience_level, jd_metadata,
-            q, result_holder, force_fresh,
+            q, result_holder, force_fresh, user_email,
         ),
         daemon=True,
     )
@@ -1492,6 +1496,7 @@ if run_clicked:
             progress_placeholder=progress_box,
             section_placeholders=section_placeholders,
             force_fresh=force_fresh,
+            user_email=_user_email_for_run,
         )
         elapsed = int(time.time() - start)
 
