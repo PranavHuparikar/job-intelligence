@@ -34,6 +34,8 @@ Streamlit secrets required:
   APP_URL      = "https://your-app.streamlit.app"
 """
 
+from __future__ import annotations  # allows dict | None syntax on Python 3.9
+
 import base64
 import hashlib
 import os
@@ -190,7 +192,82 @@ def check_password() -> bool:
         return True
 
     # ── Handle OAuth callback (?code=...&state=...) ──────────────────────────
-    code  = st.query_params.get("code", "")
-    state = st.query_params.get("state", "")
+    try:
+        code  = st.query_params.get("code", "")
+        state = st.query_params.get("state", "")
+    except Exception:
+        code, state = "", ""
 
-    # Ig
+    # Ignore Razorpay payment callbacks that also carry a `code` param
+    if code and _supabase_configured() and "razorpay_payment_id" not in st.query_params:
+        try:
+            with st.spinner("Signing you in…"):
+                user_dict, err = _exchange_code(code, state)
+        except Exception as exc:
+            user_dict, err = None, str(exc)
+
+        # Always clear the code from the URL — stale codes cause blank-page loops
+        try:
+            st.query_params.clear()
+        except Exception:
+            pass
+
+        if user_dict:
+            st.session_state["_auth_user"]    = user_dict
+            st.session_state["authenticated"] = True
+            st.session_state["user_email"]    = user_dict["email"]
+            st.rerun()
+        else:
+            st.warning(
+                f"Sign-in could not complete ({err}). Please try again.",
+                icon="🔒",
+            )
+            # Fall through and render the login button
+
+    # ── Show login UI ────────────────────────────────────────────────────────
+    return _google_login_page()
+
+
+# ---------------------------------------------------------------------------
+# Login UI
+# ---------------------------------------------------------------------------
+
+def _google_login_page() -> bool:
+    _, col, _ = st.columns([1, 1.6, 1])
+    with col:
+        st.markdown(
+            "<h1 style='text-align:center;margin-bottom:4px'>🎯 Job Intelligence</h1>"
+            "<p style='text-align:center;color:#888;margin-bottom:36px;font-size:1.05rem'>"
+            "AI-powered job analysis &middot; CV tailoring &middot; Company intel</p>",
+            unsafe_allow_html=True,
+        )
+
+        if not _supabase_configured():
+            st.error(
+                "Google sign-in is not configured. "
+                "Please add **SUPABASE_URL**, **SUPABASE_KEY**, and **APP_URL** "
+                "to Streamlit secrets.",
+                icon="🔒",
+            )
+            return False
+
+        try:
+            oauth_url = _google_oauth_url()
+            st.link_button(
+                "  Sign in with Google",
+                oauth_url,
+                use_container_width=True,
+                type="primary",
+            )
+        except Exception as exc:
+            st.error(f"Could not generate sign-in link: {exc}", icon="⚠️")
+            return False
+
+        st.markdown(
+            "<p style='text-align:center;color:#aaa;font-size:0.82rem;margin-top:16px'>"
+            "We only read your email address to track run credits.<br>"
+            "We never post on your behalf or access Gmail.</p>",
+            unsafe_allow_html=True,
+        )
+
+    return False
