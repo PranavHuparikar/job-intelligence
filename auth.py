@@ -263,18 +263,24 @@ def _google_login_page() -> bool:
 
         st.markdown(
             "<p style='text-align:center;color:#aaa;font-size:0.82rem;margin-top:16px'>"
-            "We only read your email address to track run credits.<br>"
-            "We never post on your behalf or access Gmail.</p>",
+            "Used only to identify your account and track run credits.<br>"
+            "No access to your Gmail, Drive, or any Google data.</p>",
             unsafe_allow_html=True,
         )
 
         # Debug panel — shows last exchange error and the OAuth endpoint being used
         with st.expander("🔧 Debug info", expanded=False):
             try:
-                su = _secret("SUPABASE_URL", "").rstrip("/")
-                au = _secret("APP_URL", "")
+                su       = _secret("SUPABASE_URL", "").rstrip("/")
+                app_raw  = _secret("APP_URL", "")
+                app_sent = app_raw.rstrip("/")   # what is actually in redirect_to
                 st.markdown(f"**Supabase project:** `{urlparse(su).netloc}`")
-                st.markdown(f"**redirect\\_to:** `{au}`")
+                st.markdown(f"**redirect\\_to sent to Supabase:** `{app_sent}`")
+                st.markdown(
+                    "⚠️ Add **both** of these to Supabase → Authentication → "
+                    "URL Configuration → Redirect URLs:"
+                )
+                st.code(f"{app_sent}\n{app_sent}/", language="text")
                 st.markdown(f"**Pending PKCE entries:** {len(_pkce_store)}")
                 st.markdown(f"**Fallback verifier ready:** {bool(_pkce_fallback)}")
             except Exception:
