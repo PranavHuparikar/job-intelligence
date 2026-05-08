@@ -41,8 +41,7 @@ import streamlit as st
 # Module-level PKCE store — survives Streamlit WebSocket resets in the same
 # server process (Streamlit Cloud runs one process per app).
 # ---------------------------------------------------------------------------
-_pkce_store: dict[str, str] = {}          # {state: code_verifier}
-_pkce_fallback: list[str]   = []          # [latest_code_verifier]  (single slot)
+_pkce_fallback: list[str] = []            # [latest_code_verifier] — single slot
 
 _last_exchange_error: list[str] = []      # debug: last error from exchange
 
@@ -96,27 +95,20 @@ def _google_oauth_url() -> str:
         raise ValueError("SUPABASE_URL secret is empty — cannot build OAuth URL.")
 
     verifier, challenge = _make_pkce_pair()
-    state = secrets.token_urlsafe(24)
 
-    # Layer 1: state-keyed store
-    _pkce_store[state] = verifier
-    if len(_pkce_store) > 500:
-        for old in list(_pkce_store.keys())[:-250]:
-            _pkce_store.pop(old, None)
-
-    # Layer 2: fallback slot (most recent verifier)
+    # Store verifier in fallback slot — Supabase owns the `state` param for
+    # its own CSRF validation so we must NOT inject our own state value.
     _pkce_fallback.clear()
     _pkce_fallback.append(verifier)
 
-    # NOTE: redirect_to is intentionally omitted.
-    # Supabase will use its configured Site URL, bypassing the Redirect URL
-    # allowlist check that was causing the silent fallback with no ?code=.
+    # redirect_to intentionally omitted — Supabase uses its configured Site URL.
+    # state intentionally omitted — Supabase manages CSRF state internally;
+    #   injecting a custom state causes bad_oauth_state errors.
     return (
         f"{supabase_url}/auth/v1/authorize"
         f"?provider=google"
         f"&code_challenge={challenge}"
         f"&code_challenge_method=S256"
-        f"&state={state}"
     )
 
 
@@ -124,18 +116,14 @@ def _google_oauth_url() -> str:
 # Code exchange
 # ---------------------------------------------------------------------------
 
-def _exchange_code(code: str, state: str = "") -> tuple[dict | None, str]:
+def _exchange_code(code: str) -> tuple[dict | None, str]:
     """
     Exchange OAuth auth_code for a Supabase session.
     Returns (user_dict, None) on success or (None, error_str) on failure.
     """
     try:
-        # Layer 1: state-keyed lookup
-        verifier = _pkce_store.pop(state, None) if state else None
-
-        # Layer 2: fallback to most recent verifier if state wasn't forwarded
-        if verifier is None and _pkce_fallback:
-            verifier = _pkce_fallback.pop()
+        # Use the most recently generated code_verifier
+        verifier = _pkce_fallback.pop() if _pkce_fallback else None
 
         supabase = _get_supabase()
         params: dict = {"auth_code": code}
@@ -189,16 +177,25 @@ def check_password() -> bool:
 
     # Read OAuth callback params
     try:
-        code  = st.query_params.get("code",  "")
-        state = st.query_params.get("state", "")
+        code        = st.query_params.get("code",  "")
+        oauth_error = st.query_params.get("error", "")
+        oauth_desc  = st.query_params.get("error_description", "")
     except Exception:
-        code, state = "", ""
+        code, oauth_error, oauth_desc = "", "", ""
+
+    # Show Supabase-level OAuth errors (e.g. bad_oauth_state)
+    if oauth_error:
+        try:
+            st.query_params.clear()
+        except Exception:
+            pass
+        st.warning(f"Sign-in error: {oauth_desc or oauth_error}. Please try again.", icon="🔒")
 
     # Handle callback (ignore Razorpay redirects that also carry `code`)
     if code and _supabase_configured() and "razorpay_payment_id" not in st.query_params:
         try:
             with st.spinner("Signing you in…"):
-                user_dict, err = _exchange_code(code, state)
+                user_dict, err = _exchange_code(code)
         except Exception as exc:
             user_dict, err = None, str(exc)
 
@@ -280,7 +277,6 @@ def _google_login_page() -> bool:
                     "Ensure Supabase → Authentication → URL Configuration → "
                     "**Site URL** = `https://job-intelligence-5s4e2vh4aag5rk8jlkzwbu.streamlit.app`"
                 )
-                st.markdown(f"**Pending PKCE entries:** {len(_pkce_store)}")
                 st.markdown(f"**Fallback verifier ready:** {bool(_pkce_fallback)}")
             except Exception:
                 pass
