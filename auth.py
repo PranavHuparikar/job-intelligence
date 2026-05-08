@@ -33,7 +33,7 @@ import base64
 import hashlib
 import os
 import secrets
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import streamlit as st
 
