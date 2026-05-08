@@ -1,55 +1,50 @@
 """
 auth.py — Google OAuth login via Supabase Auth.
 
-PKCE is managed manually to survive Streamlit's WebSocket-reset on OAuth redirect.
+Why manual PKCE:
+  supabase-py v2 stores code_verifier inside the client instance (in-memory).
+  When the user's browser leaves Streamlit (going to Google) the WebSocket
+  closes, the Python session is torn down, and the code_verifier is gone.
+  On callback a fresh client is created with no code_verifier, so
+  exchange_code_for_session fails and Supabase falls back to the Site URL.
 
-Problem with supabase-py v2 default behaviour:
-  sign_in_with_oauth() generates a code_verifier and stores it inside the
-  Supabase client instance.  When the user's browser leaves the Streamlit page
-  (going to Google) the WebSocket is closed, the server-side Python session is
-  torn down, and the client instance — plus its code_verifier — is gone.
-  When the callback arrives (?code=...) Streamlit boots a fresh session; the
-  new Supabase client has no code_verifier, so exchange_code_for_session fails.
+Fix — two-layer fallback:
+  Layer 1: Generate our own PKCE pair, build the /authorize URL manually,
+           store code_verifier in module-level dict keyed by `state`.
+           Works when Supabase echoes our `state` back in the redirect URL.
+  Layer 2: Also keep a "_fallback" slot with the most-recently generated
+           verifier.  Used when Supabase strips/rewrites the `state` param.
 
-Fix:
-  Generate the PKCE code_verifier ourselves, build the Supabase /authorize URL
-  manually, and park the code_verifier in a module-level dict keyed by the
-  `state` param.  Module-level state in Python survives across Streamlit
-  requests as long as the server process is running (which is always true on
-  Streamlit Cloud with a single worker per app).
-
-Supabase setup (one-time):
-  Dashboard → Authentication → Providers → Google → enable → paste
-  Client ID + Client Secret from Google Cloud Console.
-  Copy the "Callback URL" Supabase shows → paste into Google Cloud Console
-  under Authorised redirect URIs.
-
-  Dashboard → Authentication → URL Configuration:
-    Site URL            = https://your-app.streamlit.app
-    Redirect URLs       = https://your-app.streamlit.app   ← add this
+Supabase dashboard (one-time):
+  Authentication → Providers → Google → enable → paste Client ID + Secret.
+  Authentication → URL Configuration:
+    Site URL     = https://your-app.streamlit.app
+    Redirect URLs = https://your-app.streamlit.app  ← exact, no trailing slash
 
 Streamlit secrets required:
   SUPABASE_URL = "https://xxxx.supabase.co"
-  SUPABASE_KEY = "eyJ..."          # anon or service-role key
+  SUPABASE_KEY = "eyJ..."
   APP_URL      = "https://your-app.streamlit.app"
 """
 
-from __future__ import annotations  # allows dict | None syntax on Python 3.9
+from __future__ import annotations  # allows dict|None on Python 3.9+
 
 import base64
 import hashlib
 import os
 import secrets
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import streamlit as st
 
 # ---------------------------------------------------------------------------
-# Module-level PKCE store.
-# Maps  state_token  →  code_verifier.
-# Lives in the server process; survives across Streamlit WebSocket resets.
+# Module-level PKCE store — survives Streamlit WebSocket resets in the same
+# server process (Streamlit Cloud runs one process per app).
 # ---------------------------------------------------------------------------
-_pkce_store: dict[str, str] = {}
+_pkce_store: dict[str, str] = {}          # {state: code_verifier}
+_pkce_fallback: list[str]   = []          # [latest_code_verifier]  (single slot)
+
+_last_exchange_error: list[str] = []      # debug: last error from exchange
 
 
 # ---------------------------------------------------------------------------
@@ -78,40 +73,46 @@ def _get_supabase():
 
 
 # ---------------------------------------------------------------------------
-# Manual PKCE helpers
+# PKCE helpers
 # ---------------------------------------------------------------------------
 
 def _make_pkce_pair() -> tuple[str, str]:
-    """Return (code_verifier, code_challenge) using SHA-256 / S256 method."""
-    code_verifier = secrets.token_urlsafe(64)                        # 86-char URL-safe random string
-    digest        = hashlib.sha256(code_verifier.encode("ascii")).digest()
-    code_challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
-    return code_verifier, code_challenge
+    """Return (code_verifier, code_challenge) — SHA-256 / S256."""
+    verifier   = secrets.token_urlsafe(64)
+    digest     = hashlib.sha256(verifier.encode("ascii")).digest()
+    challenge  = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+    return verifier, challenge
 
 
 def _google_oauth_url() -> str:
     """
-    Build the Supabase Google OAuth redirect URL using our own PKCE params.
-    Stores the code_verifier server-side in _pkce_store, keyed by state.
+    Build Supabase /auth/v1/authorize URL with our own PKCE params.
+    Stores code_verifier in both the state-keyed dict and the fallback slot.
     """
-    supabase_url = _secret("SUPABASE_URL").rstrip("/")
-    app_url      = _secret("APP_URL", "http://localhost:8501")
+    supabase_url = _secret("SUPABASE_URL", "").rstrip("/")
+    app_url      = _secret("APP_URL", "http://localhost:8501").rstrip("/")
 
-    code_verifier, code_challenge = _make_pkce_pair()
-    state = secrets.token_urlsafe(24)         # random opaque value, also ties callback to verifier
+    if not supabase_url:
+        raise ValueError("SUPABASE_URL secret is empty — cannot build OAuth URL.")
 
-    _pkce_store[state] = code_verifier
+    verifier, challenge = _make_pkce_pair()
+    state = secrets.token_urlsafe(24)
 
-    # Evict old entries so the dict doesn't grow unbounded on long-running servers
+    # Layer 1: state-keyed store
+    _pkce_store[state] = verifier
     if len(_pkce_store) > 500:
-        for old_key in list(_pkce_store.keys())[:-250]:
-            _pkce_store.pop(old_key, None)
+        for old in list(_pkce_store.keys())[:-250]:
+            _pkce_store.pop(old, None)
+
+    # Layer 2: fallback slot (most recent verifier)
+    _pkce_fallback.clear()
+    _pkce_fallback.append(verifier)
 
     return (
         f"{supabase_url}/auth/v1/authorize"
         f"?provider=google"
         f"&redirect_to={quote(app_url, safe='')}"
-        f"&code_challenge={code_challenge}"
+        f"&code_challenge={challenge}"
         f"&code_challenge_method=S256"
         f"&state={state}"
     )
@@ -123,26 +124,26 @@ def _google_oauth_url() -> str:
 
 def _exchange_code(code: str, state: str = "") -> tuple[dict | None, str]:
     """
-    Exchange the OAuth auth_code for a Supabase session.
-    Returns (user_dict, None) on success, or (None, error_message) on failure.
-
-    Retrieves code_verifier from the module-level store using `state`.
-    If the verifier is missing (e.g. dev restart wiped the store) we still
-    attempt the exchange without it — Supabase will reject it, and the user
-    just has to sign in again.
+    Exchange OAuth auth_code for a Supabase session.
+    Returns (user_dict, None) on success or (None, error_str) on failure.
     """
     try:
-        code_verifier = _pkce_store.pop(state, None) if state else None
-        supabase      = _get_supabase()
+        # Layer 1: state-keyed lookup
+        verifier = _pkce_store.pop(state, None) if state else None
 
+        # Layer 2: fallback to most recent verifier if state wasn't forwarded
+        if verifier is None and _pkce_fallback:
+            verifier = _pkce_fallback.pop()
+
+        supabase = _get_supabase()
         params: dict = {"auth_code": code}
-        if code_verifier:
-            params["code_verifier"] = code_verifier
+        if verifier:
+            params["code_verifier"] = verifier
 
         resp = supabase.auth.exchange_code_for_session(params)
         user = resp.user
         if not user:
-            return None, "No user returned in session response."
+            return None, "No user in session response."
 
         return {
             "email":  user.email or "",
@@ -159,7 +160,6 @@ def _exchange_code(code: str, state: str = "") -> tuple[dict | None, str]:
 # ---------------------------------------------------------------------------
 
 def sign_out() -> None:
-    """Clear local session and revoke the Supabase session token."""
     st.session_state.pop("_auth_user",    None)
     st.session_state.pop("authenticated", None)
     st.session_state.pop("user_email",    None)
@@ -176,29 +176,23 @@ def sign_out() -> None:
 # ---------------------------------------------------------------------------
 
 def check_password() -> bool:
-    """
-    Render the auth gate and return True when the user is authenticated.
+    """Return True when authenticated; show login page otherwise."""
 
-    Google OAuth via Supabase is mandatory — no password / open-access fallback.
-
-    After a successful login, session_state["user_email"] is set automatically
-    so the credits system and data-isolation logic pick it up without extra wiring.
-    """
-    # ── Already authenticated ────────────────────────────────────────────────
+    # Already authenticated
     if st.session_state.get("_auth_user"):
         user = st.session_state["_auth_user"]
         if user.get("email") and not st.session_state.get("user_email"):
             st.session_state["user_email"] = user["email"]
         return True
 
-    # ── Handle OAuth callback (?code=...&state=...) ──────────────────────────
+    # Read OAuth callback params
     try:
-        code  = st.query_params.get("code", "")
+        code  = st.query_params.get("code",  "")
         state = st.query_params.get("state", "")
     except Exception:
         code, state = "", ""
 
-    # Ignore Razorpay payment callbacks that also carry a `code` param
+    # Handle callback (ignore Razorpay redirects that also carry `code`)
     if code and _supabase_configured() and "razorpay_payment_id" not in st.query_params:
         try:
             with st.spinner("Signing you in…"):
@@ -206,7 +200,7 @@ def check_password() -> bool:
         except Exception as exc:
             user_dict, err = None, str(exc)
 
-        # Always clear the code from the URL — stale codes cause blank-page loops
+        # Always wipe the code from the URL (prevents reuse on refresh)
         try:
             st.query_params.clear()
         except Exception:
@@ -218,13 +212,11 @@ def check_password() -> bool:
             st.session_state["user_email"]    = user_dict["email"]
             st.rerun()
         else:
-            st.warning(
-                f"Sign-in could not complete ({err}). Please try again.",
-                icon="🔒",
-            )
-            # Fall through and render the login button
+            # Save error for debug panel
+            _last_exchange_error.clear()
+            _last_exchange_error.append(err or "unknown error")
+            st.warning(f"Sign-in could not complete — please try again.", icon="🔒")
 
-    # ── Show login UI ────────────────────────────────────────────────────────
     return _google_login_page()
 
 
@@ -245,20 +237,26 @@ def _google_login_page() -> bool:
         if not _supabase_configured():
             st.error(
                 "Google sign-in is not configured. "
-                "Please add **SUPABASE_URL**, **SUPABASE_KEY**, and **APP_URL** "
-                "to Streamlit secrets.",
+                "Add **SUPABASE_URL**, **SUPABASE_KEY**, and **APP_URL** to Streamlit secrets.",
                 icon="🔒",
             )
             return False
 
         try:
             oauth_url = _google_oauth_url()
+
+            # Quick sanity check — URL must point to Supabase, not be relative
+            parsed = urlparse(oauth_url)
+            if not parsed.scheme or not parsed.netloc:
+                raise ValueError(f"Malformed OAuth URL: {oauth_url!r}")
+
             st.link_button(
                 "  Sign in with Google",
                 oauth_url,
                 use_container_width=True,
                 type="primary",
             )
+
         except Exception as exc:
             st.error(f"Could not generate sign-in link: {exc}", icon="⚠️")
             return False
@@ -269,5 +267,21 @@ def _google_login_page() -> bool:
             "We never post on your behalf or access Gmail.</p>",
             unsafe_allow_html=True,
         )
+
+        # Debug panel — shows last exchange error and the OAuth endpoint being used
+        with st.expander("🔧 Debug info", expanded=False):
+            try:
+                su = _secret("SUPABASE_URL", "").rstrip("/")
+                au = _secret("APP_URL", "")
+                st.markdown(f"**Supabase project:** `{urlparse(su).netloc}`")
+                st.markdown(f"**redirect\\_to:** `{au}`")
+                st.markdown(f"**Pending PKCE entries:** {len(_pkce_store)}")
+                st.markdown(f"**Fallback verifier ready:** {bool(_pkce_fallback)}")
+            except Exception:
+                pass
+            if _last_exchange_error:
+                st.error(f"Last exchange error: {_last_exchange_error[-1]}", icon="🔒")
+            else:
+                st.info("No exchange attempt yet this session.")
 
     return False
