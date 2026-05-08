@@ -1663,7 +1663,9 @@ if result:
                     from jd_database import get_jd_by_id as _get_jd_by_id
                     st.caption(f"Top {len(similar)} most similar JDs in your database:")
                     for jd in similar:
-                        sim_pct = int(jd["similarity"] * 100)
+                        # Normalize: cosine sim [0.50, 1.0] → display [0%, 100%]
+                        _raw_sim = jd["similarity"]
+                        sim_pct = max(0, min(100, int((_raw_sim - 0.50) / 0.50 * 100)))
                         color = (
                             "#1a7f1a" if sim_pct >= 80
                             else ("#b87d00" if sim_pct >= 60 else "#888888")

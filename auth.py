@@ -39,12 +39,13 @@ def _secret(key: str, default: str = "") -> str:
 
 
 def _supabase_configured() -> bool:
-    return bool(_secret("SUPABASE_URL") and _secret("SUPABASE_ANON_KEY"))
+    return bool(_secret("SUPABASE_URL") and (_secret("SUPABASE_KEY") or _secret("SUPABASE_ANON_KEY")))
 
 
 def _get_supabase():
     from supabase import create_client
-    return create_client(_secret("SUPABASE_URL"), _secret("SUPABASE_ANON_KEY"))
+    key = _secret("SUPABASE_KEY") or _secret("SUPABASE_ANON_KEY")
+    return create_client(_secret("SUPABASE_URL"), key)
 
 
 # -- OAuth helpers ------------------------------------------------------------
@@ -146,7 +147,7 @@ def _google_login_page() -> bool:
         if not _supabase_configured():
             st.error(
                 "Google sign-in is not configured yet. "
-                "Please set **SUPABASE_URL**, **SUPABASE_ANON_KEY**, and **APP_URL** "
+                "Please set **SUPABASE_URL**, **SUPABASE_KEY**, and **APP_URL** "
                 "in Streamlit secrets.",
                 icon="🔒",
             )
