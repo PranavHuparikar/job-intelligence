@@ -1,0 +1,18 @@
+[theme]
+primaryColor = "#0072C6"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F8F9FB"
+textColor = "#1A1A2E"
+font = "sans serif"
+
+[server]
+# Increase max upload size for large CV files (default is 200 MB, 10 is plenty)
+maxUploadSize = 10
+# headless = true on cloud, false locally — let Streamlit Cloud override this
+headless = true
+# Use polling instead of inotify — suppresses torchvision/transformers import noise
+fileWatcherType = "poll"
+
+[browser]
+# Disable usage statistics reporting
+gatherUsageStats = false

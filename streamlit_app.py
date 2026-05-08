@@ -52,13 +52,21 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    #MainMenu        { display: none !important; }
-    footer           { display: none !important; }
-    header           { display: none !important; }
+    #MainMenu                            { display: none !important; }
+    footer                               { display: none !important; }
+    header                               { display: none !important; }
     [data-testid="stToolbar"]            { display: none !important; }
     [data-testid="stDecoration"]         { display: none !important; }
     [data-testid="stHeader"]             { display: none !important; }
     [data-testid="manage-app-button"]    { display: none !important; }
+    [data-testid="stViewerBadge"]        { display: none !important; }
+    [data-testid="stStatusWidget"]       { display: none !important; }
+    [data-testid="stDeployButton"]       { display: none !important; }
+    .stDeployButton                      { display: none !important; }
+    .viewerBadge_container__r5tak       { display: none !important; }
+    .viewerBadge_link__qRIco            { display: none !important; }
+    [class*="viewerBadge"]              { display: none !important; }
+    [class*="deployButton"]             { display: none !important; }
     </style>
     """,
     unsafe_allow_html=True,
