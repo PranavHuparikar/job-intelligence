@@ -48,6 +48,22 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── Hide Streamlit chrome (footer, header, deploy button, GitHub branding) ────
+st.markdown(
+    """
+    <style>
+    #MainMenu        { display: none !important; }
+    footer           { display: none !important; }
+    header           { display: none !important; }
+    [data-testid="stToolbar"]            { display: none !important; }
+    [data-testid="stDecoration"]         { display: none !important; }
+    [data-testid="stHeader"]             { display: none !important; }
+    [data-testid="manage-app-button"]    { display: none !important; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # ── Razorpay payment callback handler ────────────────────────────────────────
 # MUST run BEFORE check_password() — Razorpay redirects back to APP_URL which
 # kills the Streamlit WebSocket (identical to OAuth redirect). Session state is
