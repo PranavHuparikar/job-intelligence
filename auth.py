@@ -33,7 +33,7 @@ import base64
 import hashlib
 import os
 import secrets
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 
 import streamlit as st
 
@@ -42,8 +42,6 @@ import streamlit as st
 # server process (Streamlit Cloud runs one process per app).
 # ---------------------------------------------------------------------------
 _pkce_fallback: list[str] = []            # [latest_code_verifier] — single slot
-
-_last_exchange_error: list[str] = []      # debug: last error from exchange
 
 
 # ---------------------------------------------------------------------------
@@ -211,10 +209,7 @@ def check_password() -> bool:
             st.session_state["user_email"]    = user_dict["email"]
             st.rerun()
         else:
-            # Save error for debug panel
-            _last_exchange_error.clear()
-            _last_exchange_error.append(err or "unknown error")
-            st.warning(f"Sign-in could not complete — please try again.", icon="🔒")
+            st.warning("Sign-in could not complete — please try again.", icon="🔒")
 
     return _google_login_page()
 
@@ -267,22 +262,6 @@ def _google_login_page() -> bool:
             unsafe_allow_html=True,
         )
 
-        # Debug panel — shows last exchange error and the OAuth endpoint being used
-        with st.expander("🔧 Debug info", expanded=False):
-            try:
-                su = _secret("SUPABASE_URL", "").rstrip("/")
-                st.markdown(f"**Supabase project:** `{urlparse(su).netloc}`")
-                st.markdown("**redirect\\_to:** *(not sent — Supabase uses Site URL)*")
-                st.markdown(
-                    "Ensure Supabase → Authentication → URL Configuration → "
-                    "**Site URL** = `https://job-intelligence-5s4e2vh4aag5rk8jlkzwbu.streamlit.app`"
-                )
-                st.markdown(f"**Fallback verifier ready:** {bool(_pkce_fallback)}")
-            except Exception:
-                pass
-            if _last_exchange_error:
-                st.error(f"Last exchange error: {_last_exchange_error[-1]}", icon="🔒")
-            else:
-                st.info("No exchange attempt yet this session.")
+        # (debug panel removed — not for end users)
 
     return False
