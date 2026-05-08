@@ -1398,11 +1398,11 @@ if run_clicked:
     if not errors:
         _last = st.session_state.get("last_run_at", 0)
         _elapsed = time.time() - _last
-        _cooldown = 600  # 10 minutes
+        _cooldown = 180  # 3 minutes
         if _elapsed < _cooldown:
             _wait = int(_cooldown - _elapsed)
             errors.append(
-                f"Please wait {_wait // 60}m {_wait % 60}s before running another analysis. "
+                f"Please wait {_wait // 60}m {_wait % 60}s before running again. "
                 "This protects against accidental double-submissions."
             )
 

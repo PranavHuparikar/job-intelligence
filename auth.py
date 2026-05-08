@@ -128,11 +128,8 @@ def check_password() -> bool:
         else:
             st.error(f"Google sign-in failed: {err}", icon="🔒")
 
-    # -- Choose auth method ---------------------------------------------------
-    if _supabase_configured():
-        return _google_login_page()
-    else:
-        return _password_login_page()
+    # -- Google login is mandatory regardless of other config ----------------
+    return _google_login_page()
 
 
 # -- Google OAuth login UI ----------------------------------------------------
@@ -146,6 +143,14 @@ def _google_login_page() -> bool:
             "AI-powered job analysis &middot; CV tailoring &middot; Interview prep</p>",
             unsafe_allow_html=True,
         )
+        if not _supabase_configured():
+            st.error(
+                "Google sign-in is not configured yet. "
+                "Please set **SUPABASE_URL**, **SUPABASE_ANON_KEY**, and **APP_URL** "
+                "in Streamlit secrets.",
+                icon="🔒",
+            )
+            return False
         try:
             oauth_url = _google_oauth_url()
             st.link_button(
@@ -156,10 +161,6 @@ def _google_login_page() -> bool:
             )
         except Exception as exc:
             st.error(f"Could not generate sign-in link: {exc}", icon="⚠️")
-            st.info(
-                "Check that **SUPABASE_URL**, **SUPABASE_ANON_KEY**, and **APP_URL** "
-                "are set in Streamlit secrets."
-            )
             return False
 
         st.markdown(

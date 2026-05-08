@@ -304,18 +304,23 @@ def build_tasks(
 Analyse the following Job Description against the candidate's CV.
 
 IMPORTANT — JD FORMAT NOTE:
-The JD below may be well-structured OR completely unorganized (e.g. a plain paragraph
-dump, informal LinkedIn post, copy-pasted from a PDF, or missing section headers).
-YOUR JOB IS TO EXTRACT REQUIREMENTS REGARDLESS OF FORMAT.
-- If the JD uses bullet points → extract from bullets.
-- If the JD is a paragraph → read carefully and identify implied requirements.
-- If the JD is minimal (2-3 sentences) → infer requirements from job title + any skills named.
-- If a section is absent (e.g. no "Preferred" section) → leave that step blank, don't fail.
-Never say "the JD does not specify" as a reason to skip a section — always do your best
-extraction from whatever text is present.
+JDs come in every format: polished bullet-point specs, informal WhatsApp-style messages,
+PDF copy-paste with broken lines, plain paragraphs, or just 2-3 typed sentences.
+YOUR ONLY JOB IS TO EXTRACT — never refuse, never error, never say "the JD is too vague".
 
-Ground rules: do not fabricate requirements not suggested anywhere in the JD or role title.
-Do NOT use outside knowledge to add requirements the JD doesn't imply.
+Extraction rules by format:
+- Bullet-point JD      → extract directly from bullets
+- Paragraph JD         → read carefully, identify requirements embedded in prose
+- Minimal JD (≤5 lines)→ use the job title + any skills/tools mentioned to populate sections;
+                          for missing sections write "Not specified" and score 0 for that component
+- Completely empty     → write "No JD provided" in every section and give FIT SCORE 0/100
+
+If a section genuinely has no data (e.g. no preferred requirements listed):
+  Write "None specified" for that step — do NOT skip the section header.
+  Score that component as 0 and continue. Never abort or return an error.
+
+Fabrication guardrail: do not invent requirements that are not in the JD or strongly implied
+by the role title. "Software Engineer" implies coding; do not infer specific frameworks unless named.
 
 === JOB DESCRIPTION ===
 {jd_text}
@@ -388,13 +393,13 @@ Research {company_name} to help a candidate applying for the role of {role_title
 walk into the interview fully prepared.
 Job location: {job_location or "Not specified — default to India salary sources."}
 
-SEARCH STRATEGY — follow how a human researcher would find this data:
-Budget: 7 mandatory searches. Run all in order. Collect EVERY salary figure visible.
+SEARCH STRATEGY — follow this exact order. Role-specific data comes first.
+Budget: 7 mandatory searches. Run ALL in order even if earlier ones have data.
 
-── SALARY (3 dedicated searches — run ALL 3 even if the first has data) ──
-Search 1 (broad):   "{_sal_search}"
-Search 2 (reddit):  "{_sal_search_b}"
-Search 3 (data):    "{_sal_search_c}"
+── ROLE + SALARY (priority — run all 3) ──
+Search 1 (role salary broad):  "{_sal_search}"
+Search 2 (role salary reddit): "{_sal_search_b}"
+Search 3 (role salary data):   "{_sal_search_c}"
 
 SNIPPET RULE (CRITICAL): Tavily always returns a plain-text snippet per result.
 Read EVERY snippet — they often contain "$X–Y K" or "₹X LPA" even for JS-heavy sites.
@@ -402,11 +407,13 @@ For US Search 3: h1bdata.info and myvisajobs.com are plain HTML government datab
 with exact DOL-certified salaries — try scrape_page if a URL appears (counts as 1 step).
 Record every salary number seen across all 3 searches, noting its source URL.
 
-── COMPANY RESEARCH (4 searches) ──
-Search 4 (culture):  "{company_name} culture work environment blind teamblind reviews"
-Search 5 (reviews):  "{company_name} employee reviews glassdoor ambitionbox work life balance"
-Search 6 (interview):"{company_name} {role_title} interview process rounds experience questions"
-Search 7 (news):     "{company_name} news funding layoffs expansion hiring 2024 2025"
+── INTERVIEW PROCESS (role-specific — run before culture/news) ──
+Search 4 (role interview):  "{company_name} {role_title} interview process rounds experience questions"
+Search 5 (role interview 2): "{company_name} {role_title} interview questions technical rounds leetcode"
+
+── COMPANY CONTEXT (2 searches) ──
+Search 6 (culture+reviews): "{company_name} culture work environment employee reviews glassdoor ambitionbox"
+Search 7 (news):             "{company_name} news funding layoffs expansion hiring 2024 2025"
 
 FALLBACK — only if all 3 salary searches return ZERO salary figures:
   Salary fallback: "{company_name} {role_title} pay compensation linkedin job posting"
