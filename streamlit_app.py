@@ -48,18 +48,12 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Auth gate ─────────────────────────────────────────────────────────────────
-# Must run before any other rendering so unauthenticated visitors see only the
-# login form. Returns immediately (True) when no APP_PASSWORD is configured
-# (local dev mode).
-from auth import check_password
-if not check_password():
-    st.stop()
-
 # ── Razorpay payment callback handler ────────────────────────────────────────
-# Razorpay redirects back to APP_URL after checkout, adding payment params to
-# the URL query string. We handle them on the very first page load after redirect
-# (before any other UI renders) so the credit is applied immediately.
+# MUST run BEFORE check_password() — Razorpay redirects back to APP_URL which
+# kills the Streamlit WebSocket (identical to OAuth redirect). Session state is
+# empty on arrival, so if we put this after the auth gate it never executes.
+# Credits are written directly to Supabase (not session state) so the user
+# just needs to sign in afterwards to see their updated balance.
 _qp = dict(st.query_params)
 if "razorpay_payment_id" in _qp:
     try:
@@ -67,17 +61,37 @@ if "razorpay_payment_id" in _qp:
         if razorpay_configured():
             _pay_result = handle_payment_callback(_qp)
             if _pay_result.get("success"):
-                # Store credited email in session so the sidebar pre-fills it
-                st.session_state["user_email"] = _pay_result["email"]
                 st.session_state["_payment_credited"] = _pay_result
             else:
                 st.session_state["_payment_error"] = _pay_result.get("error", "Unknown payment error")
     except Exception as _pay_exc:
         st.session_state["_payment_error"] = str(_pay_exc)
-    # Strip the Razorpay params from the URL so refreshing doesn't re-trigger
-    st.query_params.clear()
+    # Strip Razorpay params so refresh doesn't re-trigger
+    try:
+        st.query_params.clear()
+    except Exception:
+        pass
 
-# Show payment result banners (persisted across the rerun triggered by clear)
+# ── Auth gate ─────────────────────────────────────────────────────────────────
+from auth import check_password
+if not check_password():
+    # Show payment result even on the login page so user knows credits landed
+    if st.session_state.get("_payment_credited"):
+        _pr = st.session_state.pop("_payment_credited")
+        st.success(
+            f"🎉 Payment received! **{_pr['runs']} runs** added to **{_pr['email']}**.  "
+            f"Sign in above to start using them.",
+            icon="✅",
+        )
+    if st.session_state.get("_payment_error"):
+        st.error(
+            f"❌ Payment verification failed: {st.session_state.pop('_payment_error')}  \n"
+            "Please contact support if you were charged.",
+            icon="⚠️",
+        )
+    st.stop()
+
+# Show payment result banners for already-authenticated users
 if st.session_state.get("_payment_credited"):
     _pr = st.session_state.pop("_payment_credited")
     st.success(

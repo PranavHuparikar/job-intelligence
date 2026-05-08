@@ -162,36 +162,27 @@ def add_credits(
         print(f"[credits] idempotency check failed: {exc}")
         # Fall through and try to credit anyway (worst case: manual review)
 
-    # ── 2. Upsert user_credits row ────────────────────────────────────────────
-    try:
-        sb.table("user_credits").upsert(
-            {
-                "email":          email,
-                "credits":        runs_added,   # will be added via RPC below
-                "total_purchased": runs_added,
-                "total_used":     0,
-            },
-            on_conflict="email",
-            ignore_duplicates=False,
-        ).execute()
-    except Exception:
-        pass  # row may already exist; the UPDATE below handles the balance
-
-    # Use a raw increment so concurrent calls don't overwrite each other
+    # ── 2. Credit via atomic RPC (handles INSERT + ON CONFLICT increment) ────────
+    # The add_credits() Postgres function does:
+    #   INSERT ... ON CONFLICT DO UPDATE SET credits = credits + amount
+    # so it is safe for both new users and existing users.
+    # Do NOT do a separate upsert first — that would overwrite the existing
+    # balance with just runs_added, causing incorrect totals.
     try:
         sb.rpc(
             "add_credits",
             {"user_email": email, "amount": runs_added},
         ).execute()
-    except Exception:
-        # Fallback: read current value then write back (non-atomic but acceptable
-        # since payment_log idempotency prevents double-crediting)
+    except Exception as rpc_exc:
+        # Fallback: read-modify-write (non-atomic; payment_log idempotency
+        # prevents double-crediting so this is safe as a last resort)
+        print(f"[credits] add_credits RPC failed ({rpc_exc}), using fallback")
         current = get_credits(email)
         sb.table("user_credits").upsert(
             {
                 "email":           email,
                 "credits":         current + runs_added,
-                "total_purchased": current + runs_added,  # approximate
+                "total_purchased": current + runs_added,
                 "total_used":      0,
             },
             on_conflict="email",
