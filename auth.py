@@ -209,7 +209,11 @@ def check_password() -> bool:
             st.session_state["user_email"]    = user_dict["email"]
             st.rerun()
         else:
-            st.warning("Sign-in could not complete — please try again.", icon="🔒")
+            st.warning(
+                "Sign-in could not complete — click **Sign in with Google** again. "
+                "This usually happens when the app was just waking up from sleep.",
+                icon="🔒",
+            )
 
     return _google_login_page()
 
